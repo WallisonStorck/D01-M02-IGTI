@@ -5,12 +5,14 @@ const router = express.Router();
 
 const { readFile, writeFile } = fs;
 
+const gradeFile = "grades.json"; //Caminho do arquivo de grades
+
 /**
  * 1. Crie um endpoint para criar uma grade. Este endpoint deverá receber como parâmetros
  * os campos student, subject, type e value.
  */
 router.post("/", async (req, res) => {
-  const data = await JSON.parse(await readFile("grades.json")); //Carrega o arquivo.
+  const data = await JSON.parse(await readFile(gradeFile)); //Carrega o arquivo.
   const newGrade = req.body; //Carrega os parâmetros
   newGrade.id = data.nextId++; //Adiciona na nova grade o atual id e depois incrementa o próprio
   newGrade.timestamp = new Date(); //Adiciona o timestamp.
@@ -20,7 +22,7 @@ router.post("/", async (req, res) => {
   data.grades.push(orderedGrade); //Adiciona a nova grade junto as outras
   await writeFile("grades.json", JSON.stringify(data)); //Escreve tudo no arquivo
 
-  const newData = await JSON.parse(await readFile("grades.json")); //Leia de novo o arquivo
+  const newData = await JSON.parse(await readFile(gradeFile)); //Leia de novo o arquivo
   res.send(newData);
 });
 
@@ -33,7 +35,7 @@ router.post("/", async (req, res) => {
  * grades.json.
  */
 router.put("/", async (req, res) => {
-  const data = await JSON.parse(await readFile("grades.json")); //Carrega os arquivo
+  const data = await JSON.parse(await readFile(gradeFile)); //Carrega os arquivo
   const newGrade = req.body; //Carrega os parâmetros
   const gradeExist = data.grades.some((grade) => {
     return grade.id === newGrade.id;
@@ -50,7 +52,24 @@ router.put("/", async (req, res) => {
     };
   }
   await writeFile("grades.json", JSON.stringify(data));
-  const newData = await JSON.parse(await readFile("grades.json"));
+  const newData = await JSON.parse(await readFile(gradeFile));
+  res.send(newData);
+});
+
+/**
+ * 3. Crie um endpoint para excluir uma grade. Este endpoint deverá receber como
+ * parâmetro o id da grade e realizar sua exclusão do arquivo grades.json.
+ */
+router.delete("/:id", async (req, res) => {
+  const data = await JSON.parse(await readFile(gradeFile));
+  for (let i = 0; i < data.grades.length; i++) {
+    if (data.grades[i].id == req.params.id) {
+      data.grades.splice(i, 1); //Remove 1 elemento no indice "i"
+      break;
+    }
+  }
+  await writeFile(gradeFile, JSON.stringify(data));
+  const newData = await JSON.parse(await readFile(gradeFile));
   res.send(newData);
 });
 
