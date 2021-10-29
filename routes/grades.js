@@ -1,5 +1,5 @@
 import express from "express";
-import { promises as fs } from "fs";
+import { promises as fs, read } from "fs";
 
 const router = express.Router();
 
@@ -80,7 +80,6 @@ router.get("/:id", async (req, res) => {
   const data = await JSON.parse(await readFile(GRADE_FILE));
   const grade = data.grades.find((grade) => grade.id == req.params.id);
   res.send(grade);
-  // res.end(); //Termina execução
 });
 
 /**
@@ -111,26 +110,54 @@ router.get("/:id", async (req, res) => {
  * e type informados, e dividindo pelo total de registros que possuem este mesmo subject e
  * type.
  */
+// router.get("/", async (req, res) => {
+//   const data = await JSON.parse(await readFile(GRADE_FILE));
+//   const subject = req.body.subject;
+//   const type = req.body.type;
+//   let sumOfValues = 0;
+//   let countValues = 0;
+//   for (let i = 0; i < data.grades.length; i++) {
+//     if (data.grades[i].subject == subject && data.grades[i].type == type) {
+//       sumOfValues += data.grades[i].value;
+//       countValues++;
+//     }
+//   }
+//   const avgValue = sumOfValues / countValues;
+//   res.send(
+//     `A média geral da matéria ${subject} na modalidade ${type} é de ${avgValue.toFixed(
+//       2
+//     )}!`
+//   );
+// });
+
+/**
+ * 7. Crie um endpoint para retornar as três melhores grades de acordo com determinado
+ * subject e type. O endpoint deve receber como parâmetro um subject e um type retornar
+ * um array com os três registros de maior value daquele subject e type. A ordem deve ser
+ * do maior para o menor.
+ */
 router.get("/", async (req, res) => {
   const data = await JSON.parse(await readFile(GRADE_FILE));
   const subject = req.body.subject;
   const type = req.body.type;
-  let sumOfValues = 0;
-  let countValues = 0;
-  for (let i = 0; i < data.grades.length; i++) {
-    if (data.grades[i].subject == subject && data.grades[i].type == type) {
-      sumOfValues += data.grades[i].value;
-      countValues++;
+  const ranking = []; //Array que vai conter o top 3
+  data.grades.forEach((grade) => {
+    if (grade.subject == subject && grade.type == type) {
+      ranking.push(grade.value);
     }
-  }
-  const avgValue = sumOfValues / countValues;
-  res.status(200).send(avgValue);
-  // console.log(avgValue);
-  // res.end();
+  });
+  ranking.sort((a, b) => {
+    return b - a;
+  });
+  ranking.splice(3);
+  res.send(
+    `As maiores grades do subject '${subject}' e type '${type}' são ${ranking}!`
+  );
 });
 
 router.use((req, res) => {
   res.send("Server is running!");
+  res.end();
 });
 
 export default router;
