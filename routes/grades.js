@@ -71,29 +71,57 @@ router.put("/update", async (req, res, next) => {
  * 3. Crie um endpoint para excluir uma grade. Este endpoint deverá receber como
  * parâmetro o id da grade e realizar sua exclusão do arquivo grades.json.
  */
-router.delete("/delete/:id", async (req, res) => {
-  const data = await JSON.parse(await readFile(GRADE_FILE));
-  for (let i = 0; i < data.grades.length; i++) {
-    if (data.grades[i].id === parseInt(req.params.id)) {
-      data.grades.splice(i, 1); //Remove 1 elemento no indice "i"
-      break;
+router.delete("/delete/:id", async (req, res, next) => {
+  try {
+    const data = await JSON.parse(await readFile(GRADE_FILE));
+
+    //Procura pelo id
+    const idExist = data.grades.some((grade) => {
+      return grade.id === parseInt(req.params.id);
+    });
+
+    //Verifica se existe item com o id especificado
+    if (idExist) {
+      for (let i = 0; i < data.grades.length; i += 1) {
+        if (data.grades[i].id === parseInt(req.params.id)) {
+          data.grades.splice(i, 1); //Remove 1 elemento no indice "i"
+          break; //Interrompe o laço economizando tempo
+        }
+      }
+      //Escreve as alterações, ler novamente e mostra na tela
+      await writeFile(GRADE_FILE, JSON.stringify(data));
+      const newData = await JSON.parse(await readFile(GRADE_FILE));
+      res.send(newData);
+    } else {
+      throw new Error("Grade don't exist!");
     }
+  } catch (error) {
+    next(error);
   }
-  await writeFile(GRADE_FILE, JSON.stringify(data));
-  const newData = await JSON.parse(await readFile(GRADE_FILE));
-  res.send(newData);
 });
 
 /**
  * 4. Crie um endpoint para consultar uma grade em específico. Este endpoint deverá
  * receber como parâmetro o id da grade e retornar suas informações.
  */
-router.get("/consult/:id", async (req, res) => {
-  const data = await JSON.parse(await readFile(GRADE_FILE));
-  const grade = data.grades.find(
-    (grade) => grade.id === parseInt(req.params.id)
-  );
-  res.send(grade);
+router.get("/consult/:id", async (req, res, next) => {
+  try {
+    const data = await JSON.parse(await readFile(GRADE_FILE));
+
+    //Procura pelo id
+    const grade = data.grades.find(
+      (grade) => grade.id === parseInt(req.params.id)
+    );
+
+    //Verifica se id existe
+    if (grade) {
+      res.send(grade);
+    } else {
+      throw new Error("Grade don't exist!");
+    }
+  } catch (error) {
+    next(error);
+  }
 });
 
 /**
@@ -102,19 +130,35 @@ router.get("/consult/:id", async (req, res) => {
  * todas os as notas de atividades correspondentes a aquele subject para aquele student. O
  * endpoint deverá retornar a soma da propriedade value dos registros encontrados.
  */
-router.get("/consult-subject", async (req, res) => {
-  const data = await JSON.parse(await readFile(GRADE_FILE));
-  const student = req.body.student;
-  const subject = req.body.subject;
-  let countOfSubject = 0;
-  data.grades.forEach((grade) => {
-    if (grade.student == student && grade.subject == subject) {
-      countOfSubject += grade.value;
+router.get("/consult-subject", async (req, res, next) => {
+  try {
+    const data = await JSON.parse(await readFile(GRADE_FILE));
+    const student = req.body.student;
+    const subject = req.body.subject;
+    let countOfSubject = 0;
+
+    //Procura pelo estudante e disciplina especificados
+    const studentAndSubjectExist = data.grades.some((grade) => {
+      return grade.student == student && grade.subject == subject;
+    });
+
+    //Verifica se existe o estudante e disciplina especificados
+    if (studentAndSubjectExist) {
+      data.grades.forEach((grade) => {
+        if (grade.student == student && grade.subject == subject) {
+          countOfSubject += grade.value;
+        }
+      });
+
+      res.send(
+        `Student: ${student} || Subject: ${subject} || Total value: ${countOfSubject}!`
+      );
+    } else {
+      throw new Error("Dont't exists student and subject specified!");
     }
-  });
-  res.send(
-    `Student: ${student} || Subject: ${subject} || Total value: ${countOfSubject}!`
-  );
+  } catch (error) {
+    next(error);
+  }
 });
 
 /**
@@ -124,24 +168,39 @@ router.get("/consult-subject", async (req, res) => {
  * e type informados, e dividindo pelo total de registros que possuem este mesmo subject e
  * type.
  */
-router.get("/consult-avg", async (req, res) => {
-  const data = await JSON.parse(await readFile(GRADE_FILE));
-  const subject = req.body.subject;
-  const type = req.body.type;
-  let sumOfValues = 0;
-  let countValues = 0;
-  for (let i = 0; i < data.grades.length; i++) {
-    if (data.grades[i].subject == subject && data.grades[i].type == type) {
-      sumOfValues += data.grades[i].value;
-      countValues++;
+router.get("/consult-avg", async (req, res, next) => {
+  try {
+    const data = await JSON.parse(await readFile(GRADE_FILE));
+    const subject = req.body.subject;
+    const type = req.body.type;
+    let sumOfValues = 0;
+    let countValues = 0;
+
+    //Procura pelo subject e type
+    const subjectAndTypeExists = data.grades.some((grade) => {
+      return grade.subject == subject && grade.type == type;
+    });
+
+    //Verifica se existe subject e type
+    if (subjectAndTypeExists) {
+      for (let i = 0; i < data.grades.length; i += 1) {
+        if (data.grades[i].subject == subject && data.grades[i].type == type) {
+          sumOfValues += data.grades[i].value;
+          countValues++;
+        }
+      }
+      const avgValue = sumOfValues / countValues;
+      res.send(
+        `A média geral da matéria ${subject} na modalidade ${type} é de ${avgValue.toFixed(
+          2
+        )}!`
+      );
+    } else {
+      throw new Error("Don't exists subject and type specified!");
     }
+  } catch (error) {
+    next(error);
   }
-  const avgValue = sumOfValues / countValues;
-  res.send(
-    `A média geral da matéria ${subject} na modalidade ${type} é de ${avgValue.toFixed(
-      2
-    )}!`
-  );
 });
 
 /**
@@ -150,23 +209,39 @@ router.get("/consult-avg", async (req, res) => {
  * um array com os três registros de maior value daquele subject e type. A ordem deve ser
  * do maior para o menor.
  */
-router.get("/top3", async (req, res) => {
-  const data = await JSON.parse(await readFile(GRADE_FILE));
-  const subject = req.body.subject;
-  const type = req.body.type;
-  const ranking = []; //Array que vai conter o top 3
-  data.grades.forEach((grade) => {
-    if (grade.subject == subject && grade.type == type) {
-      ranking.push(grade.value);
-    }
-  });
-  ranking.sort((a, b) => {
-    return b - a;
-  });
-  ranking.splice(3);
-  res.send(
-    `As maiores grades do subject '${subject}' e type '${type}' são ${ranking}!`
-  );
+router.get("/top3", async (req, res, next) => {
+  try {
+    const data = await JSON.parse(await readFile(GRADE_FILE));
+    const subject = req.body.subject;
+    const type = req.body.type;
+    const ranking = []; //Array que vai conter o top 3
+    data.grades.forEach((grade) => {
+      if (grade.subject == subject && grade.type == type) {
+        ranking.push(grade.value);
+      }
+    });
+    ranking.sort((a, b) => {
+      return b - a;
+    });
+    ranking.splice(3);
+    res.send(
+      `As maiores grades do subject '${subject}' e type '${type}' são ${ranking}!`
+    );
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * 8. (OPCIONAL) Lista todas as grades
+ */
+router.get("/list-all", async (req, res, next) => {
+  try {
+    const data = await JSON.parse(await readFile(GRADE_FILE));
+    res.send(data.grades);
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.use((err, req, res, next) => {
